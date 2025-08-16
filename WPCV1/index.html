@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WPCV1 Launcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>WPCV1 Agent Launcher</h1>
+  <form id="launchForm">
+    <label for="mode">Mode:</label>
+    <select id="mode" name="mode">
+      <option value="validate">Validate</option>
+      <option value="dispatch">Dispatch</option>
+    </select>
+
+    <label for="agent">Agent:</label>
+    <select id="agent" name="agent">
+      <option value="validator">Validator</option>
+      <option value="dispatcher">Dispatcher</option>
+    </select>
+
+    <label for="folder">Folder:</label>
+    <input type="text" id="folder" name="folder" placeholder="/var/www/wordpress/scripts/WPCV1">
+
+    <label for="expectation">Expectation File:</label>
+    <input type="text" id="expectation" name="expectation" placeholder="expectations.md">
+
+    <button type="submit">Run</button>
+  </form>
+
+  <div id="output"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

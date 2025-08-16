@@ -1,0 +1,3 @@
+- All JS logic must be inside Vue methods
+- No inline event handlers
+- Use kebab-case for component names

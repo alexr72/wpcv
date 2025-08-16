@@ -1,0 +1,10 @@
+# Ignore logs and revisions
+WPCV1/logs/
+WPCV1/revisions/
+WPCV1/responses/
+WPCV1/conversation.txt
+WPCV1/context.json
+
+# Ignore compiled files
+__pycache__/
+*.pyc
