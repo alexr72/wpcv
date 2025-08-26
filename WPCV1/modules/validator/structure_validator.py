@@ -1,7 +1,7 @@
 import os, json
 from pathlib import Path
 
-BASE = Path("/var/www/wordpress/scripts/WPCV1")
+BASE = Path(__file__).resolve().parent.parent.parent
 LOG = BASE / "logs/validator.log"
 
 REQUIRED_PATHS = {

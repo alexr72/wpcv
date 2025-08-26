@@ -4,102 +4,240 @@
   <meta charset="UTF-8">
   <title>WPCV1 Orchestrator</title>
   <style>
-    body { font-family: sans-serif; margin: 2em; }
-    label { display: block; margin-top: 1em; }
-    select, input, button { margin-top: 0.5em; width: 100%; padding: 0.5em; }
-    pre { background: #f4f4f4; padding: 1em; border-radius: 5px; white-space: pre-wrap; }
+    body { font-family: sans-serif; margin: 2em; background-color: #f9f9f9; }
+    h1 { color: #333; }
+    #container { max-width: 800px; margin: 0 auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    label { display: block; margin-top: 1em; font-weight: bold; }
+    select, input, button {
+        margin-top: 0.5em;
+        width: 100%;
+        padding: 0.8em;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        box-sizing: border-box;
+    }
+    .input-group { display: flex; }
+    .input-group input { flex-grow: 1; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    .input-group button { width: auto; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+    button { background-color: #4CAF50; color: white; font-weight: bold; cursor: pointer; border: none; }
+    button:hover { background-color: #45a049; }
+    pre { background: #f4f4f4; padding: 1em; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
     details { margin-top: 2em; }
     summary { font-weight: bold; cursor: pointer; }
+    .hidden { display: none; }
+    #logViewer { width: 100%; height: 300px; border: 1px solid #ccc; margin-top: 1em; }
+
+    /* Modal styles */
+    .modal { position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+    .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
+    .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+    .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+    #fileBrowserList ul { list-style-type: none; padding: 0; }
+    #fileBrowserList li { cursor: pointer; padding: 8px; border-bottom: 1px solid #ddd; }
+    #fileBrowserList li:hover { background-color: #f1f1f1; }
+    .dir-item { font-weight: bold; color: #0056b3; }
+    .file-item { color: #333; }
   </style>
 </head>
 <body>
 
+<div id="container">
   <h1>🧠 WPCV1 Orchestrator</h1>
-<select id="logSelector">
-  <option value="">-- View Logs --</option>
-  <option value="session.log">Session Log</option>
-  <option value="integrity.log">Integrity Check</option>
-  <option value="history.log">Run History</option>
-</select>
 
-<iframe id="logViewer" style="width:100%; height:300px; border:1px solid #ccc;"></iframe>
+  <label for="logSelector">View Logs:</label>
+  <select id="logSelector">
+    <option value="">-- Select a Log --</option>
+    <option value="session.log">Session Log</option>
+    <option value="validator.log">Validator Log</option>
+    <option value="conversation.txt">Conversation History</option>
+  </select>
+  <iframe id="logViewer" class="hidden"></iframe>
 
   <form id="orchestratorForm">
-    <label>Mode:</label>
-    <select name="mode">
+    <label for="modeSelector">Mode:</label>
+    <select id="modeSelector" name="mode">
       <option value="prompt">Prompt</option>
       <option value="validate">Validate</option>
       <option value="scaffold">Scaffold</option>
     </select>
 
-    <label>Agent:</label>
-    <select name="agent">
-      <option value="">—</option>
-      <option value="deepseek">DeepSeek</option>
-      <option value="openai">OpenAI</option>
-      <option value="grok">Grok</option>
-      <option value="gemini">Gemini</option>
-      <option value="local">Local</option>
-    </select>
+    <div id="agentControl" class="hidden">
+      <label for="agentSelector">Agent:</label>
+      <select id="agentSelector" name="agent">
+        <option value="">—</option>
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="grok">Grok</option>
+        <option value="gemini">Gemini</option>
+        <option value="local">Local</option>
+      </select>
 
-    <label>File Path:</label>
-    <input type="text" name="file" placeholder="/path/to/code.js">
+      <label for="dirInput">Working Directory:</label>
+      <div class="input-group">
+        <input type="text" id="dirInput" name="directory" placeholder="Enter working directory path">
+        <button type="button" class="browse-btn" data-target="dirInput">Browse...</button>
+      </div>
+    </div>
 
-    <label>Expectations Path:</label>
-    <input type="text" name="expectation" placeholder="/path/to/expectations.md">
+    <div id="fileControl" class="hidden">
+      <label for="fileInput">File Path:</label>
+      <div class="input-group">
+        <input type="text" id="fileInput" name="file" placeholder="Enter file path">
+        <button type="button" class="browse-btn" data-target="fileInput">Browse...</button>
+      </div>
+    </div>
+
+    <div id="expectControl" class="hidden">
+      <label for="expectInput">Expectations Path:</label>
+      <div class="input-group">
+        <input type="text" id="expectInput" name="expectation" placeholder="/path/to/expectations.md">
+        <button type="button" class="browse-btn" data-target="expectInput">Browse...</button>
+      </div>
+    </div>
 
     <button type="submit">Run</button>
   </form>
 
+  <h2>Output</h2>
   <pre id="output">Results will appear here...</pre>
+</div>
 
-  <details>
-    <summary>📘 Workflow Reference</summary>
-    <pre>
-🧠 Mode: prompt
-- Purpose: Send user prompt to selected agent
-- Requires: --agent
-- Flow: call_agent() → API → reply → log + save
+<!-- The Modal -->
+<div id="fileBrowserModal" class="modal hidden">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h3 id="browser-current-dir">/</h3>
+    <div id="fileBrowserList"></div>
+  </div>
+</div>
 
-🧪 Mode: validate
-- Purpose: Validate code against expectations
-- Requires: --file (code), optional --expect
-- Flow: dispatcher.run_validation() → results → console
 
-🔍 Mode: validate-only
-- Purpose: Check required CLI tools
-- No file or agent needed
-- Flow: cmd_validator.validate_commands() → results → log
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const modeSelector = document.getElementById('modeSelector');
+    const agentControl = document.getElementById('agentControl');
+    const fileControl = document.getElementById('fileControl');
+    const expectControl = document.getElementById('expectControl');
+    const orchestratorForm = document.getElementById('orchestratorForm');
+    const output = document.getElementById('output');
+    const logSelector = document.getElementById('logSelector');
+    const logViewer = document.getElementById('logViewer');
 
-🧰 Mode: scaffold
-- Purpose: Generate expectations.md for selected folder/agent
-- Flow: scaffold_expectations() → optionally auto-validate
-    </pre>
-  </details>
+    // File Browser Elements
+    const modal = document.getElementById('fileBrowserModal');
+    const closeBtn = document.querySelector('.modal .close');
+    const browseBtns = document.querySelectorAll('.browse-btn');
+    const fileBrowserList = document.getElementById('fileBrowserList');
+    const browserCurrentDir = document.getElementById('browser-current-dir');
+    let activeInput = null;
 
-  <script>
-    document.getElementById("orchestratorForm").addEventListener("submit", function(e) {
+    function toggleControls() {
+      const selectedMode = modeSelector.value;
+      agentControl.classList.toggle('hidden', selectedMode !== 'prompt');
+      fileControl.classList.toggle('hidden', selectedMode !== 'validate');
+      expectControl.classList.toggle('hidden', selectedMode !== 'validate');
+    }
+
+    function fetchAndDisplayFiles(dir = '') {
+        fetch(`file_browser.php?dir=${encodeURIComponent(dir)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                fileBrowserList.innerHTML = '';
+                browserCurrentDir.textContent = data.current_dir || '/';
+                const ul = document.createElement('ul');
+
+                // Parent directory link
+                if (data.current_dir) {
+                    const parentDir = data.current_dir.substring(0, data.current_dir.lastIndexOf('/'));
+                    const li = document.createElement('li');
+                    li.textContent = '..';
+                    li.className = 'dir-item';
+                    li.addEventListener('click', () => fetchAndDisplayFiles(parentDir));
+                    ul.appendChild(li);
+                }
+
+                data.dirs.forEach(d => {
+                    const li = document.createElement('li');
+                    li.textContent = d.name;
+                    li.className = 'dir-item';
+                    li.addEventListener('click', () => fetchAndDisplayFiles(d.path));
+                    ul.appendChild(li);
+                });
+
+                data.files.forEach(f => {
+                    const li = document.createElement('li');
+                    li.textContent = f.name;
+                    li.className = 'file-item';
+                    li.addEventListener('click', () => {
+                        if (activeInput) {
+                            document.getElementById(activeInput).value = f.path;
+                        }
+                        modal.classList.add('hidden');
+                    });
+                    ul.appendChild(li);
+                });
+                fileBrowserList.appendChild(ul);
+            });
+    }
+
+    browseBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            activeInput = this.dataset.target;
+            modal.classList.remove('hidden');
+            fetchAndDisplayFiles();
+        });
+    });
+
+    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+    window.addEventListener('click', (event) => {
+        if (event.target == modal) {
+            modal.classList.add('hidden');
+        }
+    });
+
+    orchestratorForm.addEventListener('submit', function(e) {
       e.preventDefault();
+      output.textContent = 'Running...';
       const formData = new FormData(e.target);
 
-      fetch("orchestrator.php", {
-        method: "POST",
+      fetch('orchestrator.php', {
+        method: 'POST',
         body: formData
       })
-      .then(res => res.text())
-      .then(data => document.getElementById("output").textContent = data);
+      .then(response => {
+        if (!response.ok) {
+            return response.text().then(text => { throw new Error(text) });
+        }
+        return response.text();
+      })
+      .then(data => {
+        output.textContent = data;
+      })
+      .catch(error => {
+        output.textContent = 'Error: ' + error.message;
+      });
     });
-document.getElementById('logSelector').addEventListener('change', function() {
-  const file = this.value;
-  const viewer = document.getElementById('logViewer');
-  if (file) {
-    viewer.src = `preview.php?file=${encodeURIComponent(file)}`;
-  } else {
-    viewer.src = '';
-  }
-});
 
-  </script>
+    logSelector.addEventListener('change', function() {
+      const file = this.value;
+      if (file) {
+        logViewer.src = `preview.php?file=${encodeURIComponent(file)}`;
+        logViewer.classList.remove('hidden');
+      } else {
+        logViewer.src = '';
+        logViewer.classList.add('hidden');
+      }
+    });
+
+    modeSelector.addEventListener('change', toggleControls);
+    toggleControls();
+  });
+</script>
 
 </body>
 </html>
