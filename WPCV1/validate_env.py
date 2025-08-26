@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 
-BASE_PATH = "/var/www/wordpress/scripts/WPCV1"
+BASE_PATH = os.path.dirname(os.path.realpath(__file__))
 LOG_PATH = os.path.join(BASE_PATH, "logs", "validator.log")
 
 REQUIRED_FOLDERS = [

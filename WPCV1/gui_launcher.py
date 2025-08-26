@@ -3,7 +3,7 @@ from tkinter import filedialog, messagebox, ttk
 import subprocess
 import os
 
-BASE_DIR = "/var/www/wordpress/scripts/WPCV1"
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 AGENTS = ["deepseek", "openai", "grok", "gemini", "local"]
 MODES = {
     "prompt": "Send a prompt to selected agent and log response",
@@ -12,11 +12,13 @@ MODES = {
     "cmd-validate": "Check required CLI commands and paths"
 }
 
-def run_script(mode, agent=None, file_path=None, expect_path=None):
+def run_script(mode, agent=None, file_path=None, expect_path=None, directory=None):
     cmd = ["python3", os.path.join(BASE_DIR, "WPCV1.py"), "--mode", mode]
 
     if mode == "prompt" and agent:
         cmd += ["--agent", agent]
+        if directory:
+            cmd += ["--directory", directory]
     if mode == "validate" and file_path:
         cmd += ["--file", file_path]
         if expect_path:
@@ -73,9 +75,15 @@ def launch_gui():
     expect_entry.pack()
     tk.Button(root, text="Browse", command=lambda: browse_file(expect_entry)).pack()
 
+    # === Directory Path ===
+    tk.Label(root, text="Working Directory (for prompt mode):").pack(pady=5)
+    dir_entry = tk.Entry(root, width=80)
+    dir_entry.pack()
+    tk.Button(root, text="Browse", command=lambda: browse_file(dir_entry)).pack()
+
     # === Run Button ===
     tk.Button(root, text="Run", font=("Arial", 12, "bold"), bg="#4CAF50", fg="white",
-              command=lambda: run_script(mode_var.get(), agent_var.get(), file_entry.get(), expect_entry.get())
+              command=lambda: run_script(mode_var.get(), agent_var.get(), file_entry.get(), expect_entry.get(), dir_entry.get())
     ).pack(pady=10)
 
     # === Output Display ===

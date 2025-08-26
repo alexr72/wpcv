@@ -2,7 +2,7 @@ import os
 import json
 from datetime import datetime
 
-BASE_PATH = "/var/www/wordpress/scripts/WPCV1"
+BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 def log_conversation(entry: dict):
     timestamp = entry.get("timestamp", datetime.now().isoformat())

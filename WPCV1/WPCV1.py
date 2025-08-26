@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
-import os, json, datetime, requests, logging, argparse
+import os, json, datetime, requests, logging, argparse, re
 from modules.dispatcher import dispatcher as validation_dispatcher
 from modules.validator import cmd_validator
 from modules.logger.logger import log_conversation
 from modules.expectations.scaffold import scaffold_expectations
+from modules.revision.revision import save_revision
 
 # === Setup Paths ===
-base_dir = "/var/www/wordpress/scripts/WPCV1"
+base_dir = os.path.dirname(os.path.realpath(__file__))
 config_file = os.path.join(base_dir, 'config', 'user.json')
 response_dir = os.path.join(base_dir, 'responses')
 context_file = os.path.join(base_dir, 'context.json')
@@ -73,7 +74,21 @@ def save_script_revision(timestamp):
     except Exception as e:
         logging.warning(f"Script revision save failed: {e}")
 
-def call_agent(agent_name, prompt):
+def call_agent(agent_name, prompt, working_dir=None):
+    if working_dir:
+        prompt = f"You are working in the directory: {working_dir}\n\n{prompt}"
+
+    system_prompt = """
+To modify a file, please format your response within a special block like this:
+<file_modification>
+<file_path>/path/to/your/file.ext</file_path>
+<content>
+... your new file content here ...
+</content>
+</file_modification>
+"""
+    prompt = system_prompt + prompt
+
     agents_file = os.path.join(base_dir, 'config', 'agents.json')
     try:
         with open(agents_file) as f:
@@ -126,6 +141,7 @@ def main():
     parser.add_argument("--file", type=str, help="Path to code file for validation")
     parser.add_argument("--expect", type=str, help="Path to expectations file")
     parser.add_argument("--agent", choices=["deepseek", "openai", "grok", "gemini", "local"], help="Specify agent to route prompt to")
+    parser.add_argument("--directory", type=str, help="Path to the working directory for the agent")
     parser.add_argument("--validate-only", action="store_true", help="Run CMD validator only and exit")
     args = parser.parse_args()
 
@@ -165,13 +181,51 @@ def main():
         run_validation_pipeline(args.file, expectations_path)
 
     elif args.mode == 'prompt' and args.agent:
-        prompt = input(f'{username}, enter your prompt: ')
-        reply = call_agent(args.agent, prompt)
+        prompt_text = input(f'{username}, enter your prompt: ')
+        reply = call_agent(args.agent, prompt_text, args.directory)
+
+        # Check for file modification block
+        mod_match = re.search(r'<file_modification>(.*?)</file_modification>', reply, re.DOTALL)
+        if mod_match:
+            mod_block = mod_match.group(1)
+            path_match = re.search(r'<file_path>(.*?)</file_path>', mod_block, re.DOTALL)
+            content_match = re.search(r'<content>(.*?)</content>', mod_block, re.DOTALL)
+
+            if path_match and content_match:
+                file_path_relative = path_match.group(1).strip()
+                file_path_absolute = os.path.join(base_dir, file_path_relative)
+                new_content = content_match.group(1).strip()
+
+                print(f"\n✨ Agent has requested to modify the file: {file_path_relative}")
+                try:
+                    # Read original content
+                    original_content = ""
+                    if os.path.exists(file_path_absolute):
+                        with open(file_path_absolute, 'r', encoding='utf-8') as f:
+                            original_content = f.read()
+
+                    # Save 'before' revision
+                    save_revision(base_dir, file_path_relative, original_content, 'before')
+
+                    # Write new content
+                    with open(file_path_absolute, 'w', encoding='utf-8') as f:
+                        f.write(new_content)
+
+                    # Save 'after' revision
+                    save_revision(base_dir, file_path_relative, new_content, 'after')
+
+                    print(f"✅ Successfully modified file and saved revisions.")
+                    # Remove the modification block from the reply shown to the user
+                    reply = re.sub(r'<file_modification>.*?</file_modification>', '', reply, flags=re.DOTALL).strip()
+
+                except Exception as e:
+                    print(f"❌ Error modifying file: {e}")
+
         print(f"\n🧠 AI Reply:\n{'-'*40}\n{reply}\n{'-'*40}")
         print("\n🤔 Would you like to challenge that?")
-        save_response(prompt, reply, revision_tag, timestamp)
-        append_history(prompt, reply, revision_tag, timestamp)
-        update_context(prompt, reply, timestamp, username, revision_tag)
+        save_response(prompt_text, reply, revision_tag, timestamp)
+        append_history(prompt_text, reply, revision_tag, timestamp)
+        update_context(prompt_text, reply, timestamp, username, revision_tag)
         save_script_revision(timestamp)
 
     else:
