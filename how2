@@ -1,0 +1,44 @@
+ WPCV1 on a Windows machine.
+
+1. Prerequisites
+Python:
+Download and install the latest version from python.org.
+Important: During installation, make sure to check the box that says "Add Python to PATH".
+PHP (for the Web GUI):
+Download the latest "VS16 x64 Thread Safe" ZIP file from windows.php.net/download/.
+Create a folder, for example C:\php, and extract the contents of the ZIP file into it.
+Add this folder (C:\php) to your Windows PATH environment variable so you can run php from any terminal.
+2. Setup & Configuration
+Open Command Prompt (cmd) or PowerShell.
+Navigate to the root directory where you have saved the WPCV1 project files.
+Install Python Dependencies: Run the following command:
+pip install requests
+Configure AI Agents: Run the interactive configuration script:
+python WPCV1\configure_agents.py
+Follow the on-screen prompts to enter the API keys and settings for the AI agents you want to use.
+3. Running the Application (Choose One)
+You can now run either the simple desktop GUI or the full-featured web GUI.
+
+Option A: Run the Simple Desktop GUI
+In your command prompt, run the following command:
+
+python WPCV1\gui_launcher.py
+Option B: Run the Full Web GUI (Recommended)
+In your command prompt, from the project's root directory, start the PHP web server:
+php -S localhost:8000
+Open your web browser and navigate to the following address: http://localhost:8000/WPCV1_GUI/
+This will launch the full web interface.
+
+Here is how the current system works:
+
+The application operates on the file system of the machine it is running on. The file browser and the AI's ability to modify files all happen on the machine where the PHP and Python scripts are being executed.
+
+Scenario A: You run the server on your local machine.
+
+This is the scenario my Windows instructions describe (php -S localhost:8000).
+In this case, the "server" is your "client machine." Everything works seamlessly. The file browser shows your local files, and when the AI modifies a file, it is modifying the file directly on your computer. This is a very common and powerful setup for a development tool.
+Scenario B: The app runs on a remote server (a true LAMP environment).
+
+If the application is hosted on a remote web server, it can only access the files on that server.
+It cannot access files on your local client machine. A web browser's security model strictly prevents a website from reaching into your local computer's file system.
+To make that work, it would require a much more complex solution, such as a feature to upload/download files, a file-syncing client, or integration with a service like Git. Implementing that would be a significant undertaking beyond the scope of the current work.
