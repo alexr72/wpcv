@@ -2,9 +2,25 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import subprocess
 import os
+import json
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
-AGENTS = ["deepseek", "openai", "grok", "gemini", "local"]
+AGENTS_FILE = os.path.join(BASE_DIR, 'config', 'agents.json')
+
+def load_agents():
+    """Loads agent names from the configuration file."""
+    if not os.path.exists(AGENTS_FILE):
+        messagebox.showerror("Config Error", f"Agent configuration file not found at:\n{AGENTS_FILE}\n\nPlease run configure_agents.py first.")
+        return []
+    try:
+        with open(AGENTS_FILE, 'r') as f:
+            agents_config = json.load(f)
+        return list(agents_config.keys())
+    except Exception as e:
+        messagebox.showerror("Config Error", f"Error reading agents.json: {e}")
+        return []
+
+AGENTS = load_agents()
 MODES = {
     "prompt": "Send a prompt to selected agent and log response",
     "validate": "Run validation pipeline on selected code file",

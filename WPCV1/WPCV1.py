@@ -118,12 +118,12 @@ To modify a file, please format your response within a special block like this:
         logging.error(f"{agent_name} API call failed: {e}")
         return f"⚠️ API call failed: {e}"
 
-def run_validation_pipeline(code_path, expectations_path):
+def run_validation_pipeline(base_dir, code_path, expectations_path):
     try:
         with open(code_path, 'r') as f:
             code_str = f.read()
 
-        results = validation_dispatcher.run_validation(code_str, expectations_path)
+        results = validation_dispatcher.run_validation(base_dir, code_path, code_str, expectations_path)
 
         print("\n🔍 Validation Results:")
         for key, value in results.items():
@@ -142,6 +142,7 @@ def main():
     parser.add_argument("--expect", type=str, help="Path to expectations file")
     parser.add_argument("--agent", choices=["deepseek", "openai", "grok", "gemini", "local"], help="Specify agent to route prompt to")
     parser.add_argument("--directory", type=str, help="Path to the working directory for the agent")
+    parser.add_argument("--prompt", type=str, help="The prompt text for the agent")
     parser.add_argument("--validate-only", action="store_true", help="Run CMD validator only and exit")
     args = parser.parse_args()
 
@@ -173,15 +174,19 @@ def main():
             if auto_validate:
                 expectations_path = os.path.join(base_dir, "docs", f"{expectation_type}.md")
                 code_path = os.path.join(base_dir, folder, "main.js")  # or dynamically scan folder
-                run_validation_pipeline(code_path, expectations_path)
+                run_validation_pipeline(base_dir, code_path, expectations_path)
         return
 
     if args.mode == 'validate' and args.file:
         expectations_path = args.expect if args.expect else expectations_default
-        run_validation_pipeline(args.file, expectations_path)
+        run_validation_pipeline(base_dir, args.file, expectations_path)
 
     elif args.mode == 'prompt' and args.agent:
-        prompt_text = input(f'{username}, enter your prompt: ')
+        if args.prompt:
+            prompt_text = args.prompt
+        else:
+            prompt_text = input(f'{username}, enter your prompt: ')
+
         reply = call_agent(args.agent, prompt_text, args.directory)
 
         # Check for file modification block

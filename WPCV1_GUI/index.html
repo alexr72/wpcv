@@ -65,12 +65,7 @@
     <div id="agentControl" class="hidden">
       <label for="agentSelector">Agent:</label>
       <select id="agentSelector" name="agent">
-        <option value="">—</option>
-        <option value="deepseek">DeepSeek</option>
-        <option value="openai">OpenAI</option>
-        <option value="grok">Grok</option>
-        <option value="gemini">Gemini</option>
-        <option value="local">Local</option>
+        <option value="">-- Select an Agent --</option>
       </select>
 
       <label for="dirInput">Working Directory:</label>
@@ -78,6 +73,9 @@
         <input type="text" id="dirInput" name="directory" placeholder="Enter working directory path">
         <button type="button" class="browse-btn" data-target="dirInput">Browse...</button>
       </div>
+
+      <label for="promptInput">Prompt:</label>
+      <textarea id="promptInput" name="prompt" rows="5" placeholder="Enter your prompt for the AI..."></textarea>
     </div>
 
     <div id="fileControl" class="hidden">
@@ -123,6 +121,7 @@
     const output = document.getElementById('output');
     const logSelector = document.getElementById('logSelector');
     const logViewer = document.getElementById('logViewer');
+    const agentSelector = document.getElementById('agentSelector');
 
     // File Browser Elements
     const modal = document.getElementById('fileBrowserModal');
@@ -234,8 +233,27 @@
       }
     });
 
+    function loadAgents() {
+        fetch('get_agents.php')
+            .then(response => response.json())
+            .then(agents => {
+                if (agents.error) {
+                    console.error('Error loading agents:', agents.error);
+                    return;
+                }
+                agents.forEach(agent => {
+                    const option = document.createElement('option');
+                    option.value = agent;
+                    option.textContent = agent.charAt(0).toUpperCase() + agent.slice(1);
+                    agentSelector.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching agents:', error));
+    }
+
     modeSelector.addEventListener('change', toggleControls);
     toggleControls();
+    loadAgents();
   });
 </script>
 

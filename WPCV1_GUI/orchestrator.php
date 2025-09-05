@@ -24,6 +24,7 @@ $agent = isset($_POST['agent']) ? escapeshellarg($_POST['agent']) : '';
 $file = isset($_POST['file']) ? escapeshellarg($_POST['file']) : '';
 $expectation = isset($_POST['expectation']) ? escapeshellarg($_POST['expectation']) : '';
 $directory = isset($_POST['directory']) ? escapeshellarg($_POST['directory']) : '';
+$prompt = isset($_POST['prompt']) ? escapeshellarg($_POST['prompt']) : '';
 
 if (empty($mode)) {
     http_response_code(400);
@@ -41,11 +42,16 @@ if ($mode_unquoted === 'prompt' && !empty($agent)) {
     if (!empty($directory)) {
         $cmd .= " --directory $directory";
     }
+    if (!empty($prompt)) {
+        $cmd .= " --prompt $prompt";
+    }
 } elseif ($mode_unquoted === 'validate' && !empty($file)) {
     $cmd .= " --file $file";
     if (!empty($expectation)) {
         $cmd .= " --expect $expectation";
     }
+} elseif ($mode_unquoted === 'scaffold') {
+    // No additional arguments needed for scaffold mode
 }
 
 // Redirect stderr to stdout to capture errors from the script

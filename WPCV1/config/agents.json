@@ -1,4 +1,24 @@
 {
+  "openai": {
+    "api_key": "YOUR_OPENAI_API_KEY",
+    "model": "gpt-4",
+    "url": "https://api.openai.com/v1/chat/completions"
+  },
+  "deepseek": {
+    "api_key": "YOUR_DEEPSEEK_API_KEY",
+    "model": "deepseek-chat",
+    "url": "https://api.deepseek.com/chat/completions"
+  },
+  "gemini": {
+    "api_key": "YOUR_GEMINI_API_KEY",
+    "model": "gemini-pro",
+    "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+  },
+  "grok": {
+    "api_key": "YOUR_GROK_API_KEY",
+    "model": "grok-1",
+    "url": "https://api.x.ai/v1/chat/completions"
+  },
   "local": {
     "api_key": "NA",
     "model": "local-model",
