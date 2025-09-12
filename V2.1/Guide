@@ -1,0 +1,96 @@
+DeepSeek Document & Code Assistant - Usage Guide
+Here's a quick rundown of the key features and how to use them:
+
+🚀 Getting Started
+Set your API Key: Enter your DeepSeek API key in the top right field and click "Save Key"
+
+Select Model: Choose between "deepseek-chat" (general purpose) or "deepseek-coder" (code-specific)
+
+📁 Document Management
+Upload Documents: Click "Upload Document" to load text files, code files, or Word documents
+
+Multi-Document Support: Load multiple files and switch between them using the document list
+
+Language Detection: The app automatically detects the language based on file extension
+
+Syntax Highlighting: Code is highlighted based on the selected language
+
+💬 Conversation Features
+Multiple Conversations: Start new conversations or switch between existing ones
+
+Context Preservation: Conversations maintain context across messages
+
+Save/Load: Export conversations to JSON files or load previous conversations
+
+Token Management: The app automatically manages token limits to prevent truncation
+
+🎯 Smart Analysis Tools
+Project Context: Use the "Project Context" tab to describe your overall project goals
+
+Context Inclusion: Toggle whether to include project context or document content in your prompts
+
+Quick Actions: Use the analysis buttons for common tasks like summarization
+
+📋 Workflow Example
+Upload your project files
+
+Describe your project in the "Project Context" tab
+
+Ask questions about your code/documentation
+
+The assistant will respond with context-aware answers
+
+Copy or save the responses as needed
+
+⚙️ Advanced Features
+Dark Mode: The interface uses a developer-friendly dark theme
+
+Code Highlighting: Both input and response areas have syntax highlighting
+
+Token Limits: Configure maximum token limits in Settings to prevent response truncation
+
+Word Document Support: Install python-docx package for Word file support
+
+💡 Pro Tips
+Use specific filenames to help the assistant understand your project structure
+
+The "Include Project Context" checkbox helps maintain conversation continuity
+
+For long conversations, the app automatically trims older messages to stay within token limits
+
+Save important conversations to avoid losing context between sessions
+
+The assistant is particularly useful for:
+
+Code explanation and documentation
+
+Project analysis and summarization
+
+Debugging assistance
+
+Learning new codebases
+
+Generating code snippets based on your existing code
+
+Enjoy using your enhanced DeepSeek Document & Code Assistant!
+
+Optional Dependencies:
+bash
+# For Word document support:
+pip install python-docx
+
+# For potential future enhancements:
+pip install PyQt6-WebEngine  # For rendering rich content
+Full Installation Command:
+bash
+# Basic installation:
+pip install PyQt6 requests markdown
+
+# With Word document support:
+pip install PyQt6 requests markdown python-docx
+Platform-Specific Notes:
+Windows: Should work out of the box
+
+macOS: May require installing PyQt6 using: brew install pyqt6
+
+Linux (Ubuntu/Debian): May require: sudo apt-get install python3-pyqt6
