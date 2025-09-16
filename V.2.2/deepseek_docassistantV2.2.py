@@ -356,35 +356,53 @@ class WordPressAssistant(QMainWindow):
         
         # Scan the project structure
         self.scan_project_structure()
+
+        # IMPORTANT: Add project context to the current conversation
+        project_context = self.build_project_context_prompt()
+        if project_context:
+            # Add project context as a system message to current conversation
+            if self.current_conversation_id not in self.conversation_context:
+                self.conversation_context[self.current_conversation_id] = []
+
+            # Add project context as system message
+            self.conversation_context[self.current_conversation_id].append({
+                "role": "system",
+                "content": project_context
+            })
+
+            # Update token count
+            context_tokens = self.estimate_tokens(project_context)
+            self.current_tokens += context_tokens
+            self.update_token_count()
         
     def scan_project_structure(self):
         """Scan and display the WordPress project structure"""
         if not self.current_project_path:
             QMessageBox.warning(self, "No Project", "Please load a WordPress project first.")
             return
-            
-        self.project_tree.clear()
-        self.project_structure = {}
-        
-        # Common WordPress directories to highlight
-        wp_directories = {
-            'wp-admin': 'WordPress Admin',
-            'wp-includes': 'WordPress Includes',
-            'wp-content/themes': 'Themes',
-            'wp-content/plugins': 'Plugins',
-            'wp-content/uploads': 'Uploads',
-            'wp-content/mu-plugins': 'Must-Use Plugins'
-        }
-        
-        # Create root item
-        root_item = QTreeWidgetItem(self.project_tree, [os.path.basename(self.current_project_path)])
-        root_item.setData(0, Qt.ItemDataRole.UserRole, self.current_project_path)
-        
-        # Recursively add files and directories
-        self.add_files_to_tree(root_item, self.current_project_path, wp_directories)
-        
-        # Expand the root item
-        self.project_tree.expandItem(root_item)
+        try:
+            self.project_tree.clear()
+            self.project_structure = {}
+
+            # Verify it's a valid directory
+            if not os.path.isdir(self.current_project_path):
+                raise ValueError("Selected path is not a valid directory")
+
+            # Create root item
+            root_item = QTreeWidgetItem(self.project_tree, [os.path.basename(self.current_project_path)])
+            root_item.setData(0, Qt.ItemDataRole.UserRole, self.current_project_path)
+
+            # Recursively add files and directories
+            self.add_files_to_tree(root_item, self.current_project_path, {})
+
+            # Expand the root item
+            self.project_tree.expandItem(root_item)
+
+            self.status_bar.showMessage(f"Project scanned successfully: {len(self.get_all_files())} files found")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Scan Error", f"Could not scan project: {str(e)}")
+            self.status_bar.showMessage("Project scan failed")
         
     def add_files_to_tree(self, parent_item, path, wp_directories):
         """Recursively add files to the tree widget"""
@@ -425,6 +443,16 @@ class WordPressAssistant(QMainWindow):
         except Exception as e:
             self.status_bar.showMessage(f"Error scanning: {str(e)}")
             
+    def get_all_files(self): """Get all files in the project for context building"""
+        all_files = []
+        if not self.current_project_path: return all_files
+        for root, dirs, files in os.walk(self.current_project_path):
+            for file in files:
+                if file.lower().endswith(('.php', '.js', '.css', '.html', '.txt', '.md', '.json', '.xml')):
+                    all_files.append(os.path.join(root, file))
+
+        return all_files
+
     def on_tree_item_clicked(self, item, column):
         """Handle clicks on tree items"""
         file_path = item.data(0, Qt.ItemDataRole.UserRole)
@@ -748,11 +776,11 @@ class WordPressAssistant(QMainWindow):
         if not prompt:
             QMessageBox.warning(self, "Empty Prompt", "Please enter a question.")
             return
-        
-        # Prepare system messages first
+
+        # Prepare system messages
         system_messages = []
-        
-        # Add WordPress context
+
+        # Add WordPress expert context
         wp_context = """
         You are a WordPress development expert. Focus on providing:
         - WordPress best practices
@@ -762,18 +790,9 @@ class WordPressAssistant(QMainWindow):
         - Modern development techniques (REST API, Blocks, etc.)
         """
         system_messages.append({"role": "system", "content": wp_context})
-        
-        # Add project context if available
-        project_context = self.build_project_context_prompt()
-        if project_context:
-            system_messages.append({"role": "system", "content": project_context})
 
         # Manage token usage (this will trim context if needed)
         self.manage_token_usage(prompt, system_messages)
-
-        # Add debug output:
-        print(f"Available conversations: {list(self.conversation_context.keys())}")
-        print(f"Looking for: {self.current_conversation_id}")
 
         self.status_bar.showMessage("Processing your question...")
         self.ask_btn.setEnabled(False)
@@ -781,25 +800,17 @@ class WordPressAssistant(QMainWindow):
         # Prepare messages for the API
         messages = []
         messages.extend(system_messages)
-        
+
         # Add conversation history if context is enabled
         if self.context_checkbox.isChecked():
             context_key = self.current_conversation_id
             if context_key in self.conversation_context:
                 context_messages = self.conversation_context[context_key]
-                print(f"Adding {len(context_messages)} context messages to conversation {context_key}")
                 messages.extend(context_messages)
-            else:
-                print(f"No context found for {context_key}")
-        
+
         # Add current prompt
         messages.append({"role": "user", "content": prompt})
-        
-        # DEBUG: Print the messages being sent
-        print("Sending messages to API:")
-        for i, msg in enumerate(messages):
-            print(f"{i}: {msg['role']} - {msg['content'][:100]}...")
-        
+
         self.worker = DeepSeekWorker(self.api_key, messages, "deepseek-coder", self.current_conversation_id)
         self.worker.response_received.connect(self.handle_response)
         self.worker.error_occurred.connect(self.handle_error)
