@@ -540,7 +540,7 @@ class WordPressAssistant(QMainWindow):
     def manage_token_usage(self, new_content):
         new_tokens = self.estimate_tokens(new_content)
 
-        # If adding new content would exceed limit, remove oldest messages
+        # If adding new content would exceed limit, remove oldest messages from context
         while (self.current_tokens + new_tokens > self.token_limit and
                self.conversation_context.get(self.current_conversation_id, [])):
 
@@ -556,8 +556,9 @@ class WordPressAssistant(QMainWindow):
                     removed = self.conversation_context[self.current_conversation_id].pop(0)
                     self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
 
-        self.current_tokens += new_tokens
+        # Don't add new_tokens here - that should happen after the API call
         self.update_token_count()
+        return new_tokens
         
     def create_wp_plugin(self):
         self.prompt_input.setPlainText("""
@@ -739,6 +740,9 @@ class WordPressAssistant(QMainWindow):
         print(f"Available conversations: {list(self.conversation_context.keys())}")
         print(f"Looking for: {self.current_conversation_id}")
 
+        # Manage token usage BEFORE building messages
+        new_tokens = self.manage_token_usage(prompt)
+
         self.status_bar.showMessage("Processing your question...")
         self.ask_btn.setEnabled(False)
         
@@ -762,7 +766,7 @@ class WordPressAssistant(QMainWindow):
             messages.append({"role": "system", "content": project_context})
         
         # Add conversation history if context is enabled
-        if (self.context_checkbox.isChecked()):
+        if self.context_checkbox.isChecked():
             context_key = self.current_conversation_id
             if context_key in self.conversation_context:
                 context_messages = self.conversation_context[context_key]
@@ -774,8 +778,10 @@ class WordPressAssistant(QMainWindow):
         # Add current prompt
         messages.append({"role": "user", "content": prompt})
         
-        # Manage token usage
-        self.manage_token_usage(prompt)
+        # DEBUG: Print the messages being sent
+        print("Sending messages to API:")
+        for i, msg in enumerate(messages):
+            print(f"{i}: {msg['role']} - {msg['content'][:100]}...")
         
         self.worker = DeepSeekWorker(self.api_key, messages, "deepseek-coder", self.current_conversation_id)
         self.worker.response_received.connect(self.handle_response)
@@ -792,12 +798,17 @@ class WordPressAssistant(QMainWindow):
         # Update conversation context
         if conversation_id in self.conversation_context:
             prompt = self.prompt_input.toPlainText()
+
+            # Add the user message and assistant response
             self.conversation_context[conversation_id].append({"role": "user", "content": prompt})
             self.conversation_context[conversation_id].append({"role": "assistant", "content": response})
             
-            # Update token count with response
-            self.manage_token_usage(response)
-        
+            # Update token count with both prompt and response
+            prompt_tokens = self.estimate_tokens(prompt)
+            response_tokens = self.estimate_tokens(response)
+            self.current_tokens += prompt_tokens + response_tokens
+            self.update_token_count()
+
         print(f"Context after adding: {len(self.conversation_context.get(conversation_id, []))} messages")
 
         # Convert markdown to HTML with WordPress styling
