@@ -4,6 +4,7 @@ import json
 import os
 import html
 import re
+import tiktoken
 from datetime import datetime
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QPushButton, 
                              QVBoxLayout, QHBoxLayout, QWidget, QSplitter, QLabel, 
@@ -123,6 +124,7 @@ class WordPressAssistant(QMainWindow):
         self.current_project_path = None
         self.token_limit = 8000
         self.current_tokens = 0
+        self.encoder = tiktoken.get_encoding("cl100k_base")
         
         self.initUI()
         self.load_settings()
@@ -521,8 +523,10 @@ class WordPressAssistant(QMainWindow):
         return "\n".join(prompt_lines)
         
     def estimate_tokens(self, text):
-        # Simple token estimation (1 token ≈ 4 characters)
-        return max(1, len(text) // 4)
+        """More accurate token estimation using tiktoken"""
+        if not text:
+            return 0
+        return len(self.encoder.encode(text))
         
     def update_token_count(self):
         self.token_label.setText(f"Tokens: {self.current_tokens}/{self.token_limit}")
@@ -535,16 +539,23 @@ class WordPressAssistant(QMainWindow):
             
     def manage_token_usage(self, new_content):
         new_tokens = self.estimate_tokens(new_content)
-        
+
         # If adding new content would exceed limit, remove oldest messages
-        while self.current_tokens + new_tokens > self.token_limit and self.conversation_context.get(self.current_conversation_id, []):
+        while (self.current_tokens + new_tokens > self.token_limit and
+               self.conversation_context.get(self.current_conversation_id, [])):
+
             # Remove the oldest message pair (user + assistant)
             if len(self.conversation_context[self.current_conversation_id]) >= 2:
-                removed = self.conversation_context[self.current_conversation_id].pop(0)
-                self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
-                removed = self.conversation_context[self.current_conversation_id].pop(0)
-                self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
-            
+                # Remove user message
+                if self.conversation_context[self.current_conversation_id]:
+                    removed = self.conversation_context[self.current_conversation_id].pop(0)
+                    self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
+
+                # Remove assistant message
+                if self.conversation_context[self.current_conversation_id]:
+                    removed = self.conversation_context[self.current_conversation_id].pop(0)
+                    self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
+
         self.current_tokens += new_tokens
         self.update_token_count()
         
@@ -746,10 +757,17 @@ class WordPressAssistant(QMainWindow):
         if project_context:
             messages.append({"role": "system", "content": project_context})
         
+        # DEBUG: Print conversation context
+        print(f"Current conversation ID: {self.current_conversation_id}")
+        print(f"Context messages: {len(self.conversation_context.get(self.current_conversation_id, []))}")
+
         # Add conversation history if context is enabled
         if (self.context_checkbox.isChecked() and 
             self.current_conversation_id in self.conversation_context):
-            messages.extend(self.conversation_context[self.current_conversation_id])
+
+            context_messages = self.conversation_context[self.current_conversation_id]
+            print(f"Adding {len(context_messages)} context messages")
+            messages.extend(context_messages)
         
         # Add current prompt
         messages.append({"role": "user", "content": prompt})
