@@ -538,19 +538,20 @@ class WordPressAssistant(QMainWindow):
             self.token_label.setStyleSheet("color: #f1f1f1;")
             
     def manage_token_usage(self, prompt_content, system_messages=[]):
-        # Calculate tokens for all components
+        # Calculate tokens for the new prompt and system messages
         prompt_tokens = self.estimate_tokens(prompt_content)
         system_tokens = sum(self.estimate_tokens(msg.get("content", "")) for msg in system_messages)
 
-        total_new_tokens = prompt_tokens + system_tokens
+        # Estimate response tokens
+        estimated_response_tokens = 1000
 
-        # Estimate response tokens (conservative estimate)
-        estimated_response_tokens = 1000  # Average response size
+        # Total estimated tokens for this request + response
+        total_estimated_tokens = prompt_tokens + system_tokens + estimated_response_tokens
 
-        total_estimated_tokens = total_new_tokens + estimated_response_tokens
+        # If we're over limit, remove oldest context messages until we have space
+        available_tokens = self.token_limit - self.current_tokens
 
-        # If adding new content would exceed limit, remove oldest messages from context
-        while (self.current_tokens + total_estimated_tokens > self.token_limit and
+        while (total_estimated_tokens > available_tokens and
                self.conversation_context.get(self.current_conversation_id, [])):
 
             # Remove the oldest message pair (user + assistant)
@@ -558,15 +559,19 @@ class WordPressAssistant(QMainWindow):
                 # Remove user message
                 if self.conversation_context[self.current_conversation_id]:
                     removed = self.conversation_context[self.current_conversation_id].pop(0)
-                    self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
+                    removed_tokens = self.estimate_tokens(removed.get("content", ""))
+                    self.current_tokens -= removed_tokens
+                    available_tokens += removed_tokens
 
                 # Remove assistant message
                 if self.conversation_context[self.current_conversation_id]:
                     removed = self.conversation_context[self.current_conversation_id].pop(0)
-                    self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
+                    removed_tokens = self.estimate_tokens(removed.get("content", ""))
+                    self.current_tokens -= removed_tokens
+                    available_tokens += removed_tokens
 
         self.update_token_count()
-        return prompt_tokens
+        # Don't return anything - we're just managing the context
         
     def create_wp_plugin(self):
         self.prompt_input.setPlainText("""
@@ -763,9 +768,8 @@ class WordPressAssistant(QMainWindow):
         if project_context:
             system_messages.append({"role": "system", "content": project_context})
 
-        # Manage token usage with all components
-        prompt_tokens = self.manage_token_usage(prompt, system_messages)
-        self.current_tokens += prompt_tokens
+        # Manage token usage (this will trim context if needed)
+        self.manage_token_usage(prompt, system_messages)
 
         # Add debug output:
         print(f"Available conversations: {list(self.conversation_context.keys())}")
@@ -816,9 +820,10 @@ class WordPressAssistant(QMainWindow):
             self.conversation_context[conversation_id].append({"role": "user", "content": prompt})
             self.conversation_context[conversation_id].append({"role": "assistant", "content": response})
             
-            # Update token count with response only (prompt was already counted)
+            # Update token count with both prompt and response
+            prompt_tokens = self.estimate_tokens(prompt)
             response_tokens = self.estimate_tokens(response)
-            self.current_tokens += response_tokens
+            self.current_tokens += prompt_tokens + response_tokens
             self.update_token_count()
 
         print(f"Context after adding: {len(self.conversation_context.get(conversation_id, []))} messages")
