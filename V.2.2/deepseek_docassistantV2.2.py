@@ -537,11 +537,20 @@ class WordPressAssistant(QMainWindow):
         else:
             self.token_label.setStyleSheet("color: #f1f1f1;")
             
-    def manage_token_usage(self, new_content):
-        new_tokens = self.estimate_tokens(new_content)
+    def manage_token_usage(self, prompt_content, system_messages=[]):
+        # Calculate tokens for all components
+        prompt_tokens = self.estimate_tokens(prompt_content)
+        system_tokens = sum(self.estimate_tokens(msg.get("content", "")) for msg in system_messages)
+
+        total_new_tokens = prompt_tokens + system_tokens
+
+        # Estimate response tokens (conservative estimate)
+        estimated_response_tokens = 1000  # Average response size
+
+        total_estimated_tokens = total_new_tokens + estimated_response_tokens
 
         # If adding new content would exceed limit, remove oldest messages from context
-        while (self.current_tokens + new_tokens > self.token_limit and
+        while (self.current_tokens + total_estimated_tokens > self.token_limit and
                self.conversation_context.get(self.current_conversation_id, [])):
 
             # Remove the oldest message pair (user + assistant)
@@ -556,9 +565,8 @@ class WordPressAssistant(QMainWindow):
                     removed = self.conversation_context[self.current_conversation_id].pop(0)
                     self.current_tokens -= self.estimate_tokens(removed.get("content", ""))
 
-        # Don't add new_tokens here - that should happen after the API call
         self.update_token_count()
-        return new_tokens
+        return prompt_tokens
         
     def create_wp_plugin(self):
         self.prompt_input.setPlainText("""
@@ -736,18 +744,8 @@ class WordPressAssistant(QMainWindow):
             QMessageBox.warning(self, "Empty Prompt", "Please enter a question.")
             return
         
-        # Add this debug output:
-        print(f"Available conversations: {list(self.conversation_context.keys())}")
-        print(f"Looking for: {self.current_conversation_id}")
-
-        # Manage token usage BEFORE building messages
-        new_tokens = self.manage_token_usage(prompt)
-
-        self.status_bar.showMessage("Processing your question...")
-        self.ask_btn.setEnabled(False)
-        
-        # Prepare messages for the API
-        messages = []
+        # Prepare system messages first
+        system_messages = []
         
         # Add WordPress context
         wp_context = """
@@ -758,12 +756,27 @@ class WordPressAssistant(QMainWindow):
         - Vue.js integration advice where relevant
         - Modern development techniques (REST API, Blocks, etc.)
         """
-        messages.append({"role": "system", "content": wp_context})
+        system_messages.append({"role": "system", "content": wp_context})
         
         # Add project context if available
         project_context = self.build_project_context_prompt()
         if project_context:
-            messages.append({"role": "system", "content": project_context})
+            system_messages.append({"role": "system", "content": project_context})
+
+        # Manage token usage with all components
+        prompt_tokens = self.manage_token_usage(prompt, system_messages)
+        self.current_tokens += prompt_tokens
+
+        # Add debug output:
+        print(f"Available conversations: {list(self.conversation_context.keys())}")
+        print(f"Looking for: {self.current_conversation_id}")
+
+        self.status_bar.showMessage("Processing your question...")
+        self.ask_btn.setEnabled(False)
+
+        # Prepare messages for the API
+        messages = []
+        messages.extend(system_messages)
         
         # Add conversation history if context is enabled
         if self.context_checkbox.isChecked():
@@ -803,10 +816,9 @@ class WordPressAssistant(QMainWindow):
             self.conversation_context[conversation_id].append({"role": "user", "content": prompt})
             self.conversation_context[conversation_id].append({"role": "assistant", "content": response})
             
-            # Update token count with both prompt and response
-            prompt_tokens = self.estimate_tokens(prompt)
+            # Update token count with response only (prompt was already counted)
             response_tokens = self.estimate_tokens(response)
-            self.current_tokens += prompt_tokens + response_tokens
+            self.current_tokens += response_tokens
             self.update_token_count()
 
         print(f"Context after adding: {len(self.conversation_context.get(conversation_id, []))} messages")
