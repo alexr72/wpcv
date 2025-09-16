@@ -735,6 +735,10 @@ class WordPressAssistant(QMainWindow):
             QMessageBox.warning(self, "Empty Prompt", "Please enter a question.")
             return
         
+        # Add this debug output:
+        print(f"Available conversations: {list(self.conversation_context.keys())}")
+        print(f"Looking for: {self.current_conversation_id}")
+
         self.status_bar.showMessage("Processing your question...")
         self.ask_btn.setEnabled(False)
         
@@ -757,17 +761,15 @@ class WordPressAssistant(QMainWindow):
         if project_context:
             messages.append({"role": "system", "content": project_context})
         
-        # DEBUG: Print conversation context
-        print(f"Current conversation ID: {self.current_conversation_id}")
-        print(f"Context messages: {len(self.conversation_context.get(self.current_conversation_id, []))}")
-
         # Add conversation history if context is enabled
-        if (self.context_checkbox.isChecked() and 
-            self.current_conversation_id in self.conversation_context):
-
-            context_messages = self.conversation_context[self.current_conversation_id]
-            print(f"Adding {len(context_messages)} context messages")
-            messages.extend(context_messages)
+        if (self.context_checkbox.isChecked()):
+            context_key = self.current_conversation_id
+            if context_key in self.conversation_context:
+                context_messages = self.conversation_context[context_key]
+                print(f"Adding {len(context_messages)} context messages to conversation {context_key}")
+                messages.extend(context_messages)
+            else:
+                print(f"No context found for {context_key}")
         
         # Add current prompt
         messages.append({"role": "user", "content": prompt})
@@ -784,6 +786,9 @@ class WordPressAssistant(QMainWindow):
         self.ask_btn.setEnabled(True)
         self.status_bar.showMessage("Response received")
         
+        print(f"Storing response in conversation: {conversation_id}")
+        print(f"Current context before adding: {len(self.conversation_context.get(conversation_id, []))} messages")
+
         # Update conversation context
         if conversation_id in self.conversation_context:
             prompt = self.prompt_input.toPlainText()
@@ -793,6 +798,8 @@ class WordPressAssistant(QMainWindow):
             # Update token count with response
             self.manage_token_usage(response)
         
+        print(f"Context after adding: {len(self.conversation_context.get(conversation_id, []))} messages")
+
         # Convert markdown to HTML with WordPress styling
         html_response = markdown.markdown(response)
         
